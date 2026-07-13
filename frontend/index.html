@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Weather Monitor</title>
+<style>
+  :root {
+    --bg: #0f1720;
+    --surface: #182530;
+    --border: #263544;
+    --text: #e8edf2;
+    --text-muted: #7c8b99;
+    --accent-warm: #e8935c;
+    --accent-cool: #5ca8e8;
+    --accent-cloud: #9fb0c0;
+    --accent-storm: #b58af0;
+    --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background:
+      radial-gradient(circle at 15% 0%, rgba(92, 168, 232, 0.07), transparent 45%),
+      radial-gradient(circle at 85% 20%, rgba(232, 147, 92, 0.05), transparent 40%),
+      var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    min-height: 100vh;
+    padding: 48px 24px;
+  }
+
+  .wrap { max-width: 1080px; margin: 0 auto; }
+
+  header { margin-bottom: 40px; }
+
+  .eyebrow {
+    font-size: 12px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent-warm);
+    margin: 0 0 8px;
+    font-weight: 600;
+  }
+
+  h1 { font-size: 32px; margin: 0 0 8px; letter-spacing: -0.01em; }
+
+  .subtitle { color: var(--text-muted); font-size: 14px; margin: 0; display: flex; align-items: center; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+    gap: 16px;
+  }
+
+  .card {
+    position: relative;
+    overflow: hidden;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px;
+    transition: border-color 200ms ease, transform 200ms var(--ease-out), box-shadow 200ms ease;
+  }
+
+  .card--entering {
+    opacity: 0;
+    transform: translateY(8px);
+    animation: cardIn 420ms var(--ease-out) forwards;
+  }
+
+  .card::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--tint, var(--accent-warm));
+    opacity: 0.7;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .card:hover {
+      transform: translateY(-3px) scale(1.05);
+      border-color: #33465a;
+      box-shadow: 0 10px 28px -10px var(--tint-glow, rgba(232, 147, 92, 0.3));
+      z-index: 10;
+    }
+    .card:hover .icon-wrap {
+      transform: scale(1.15) rotate(-6deg);
+    }
+  }
+
+  @keyframes cardIn { to { opacity: 1; transform: translateY(0); } }
+
+  .card:nth-child(1) { animation-delay: 0ms; }
+  .card:nth-child(2) { animation-delay: 50ms; }
+  .card:nth-child(3) { animation-delay: 100ms; }
+  .card:nth-child(4) { animation-delay: 150ms; }
+  .card:nth-child(5) { animation-delay: 200ms; }
+
+  .card-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 18px;
+  }
+
+  .city-name { font-size: 14px; font-weight: 600; color: var(--text); margin: 0; }
+
+  .icon-wrap {
+    width: 40px;
+    height: 40px;
+    color: var(--tint, var(--accent-warm));
+    flex-shrink: 0;
+    transition: transform 200ms var(--ease-out);
+  }
+
+  .icon-anim { display: block; width: 100%; height: 100%; }
+  .icon-anim svg { width: 100%; height: 100%; display: block; }
+
+  .icon-float { animation: iconFloat 3.2s ease-in-out infinite alternate; }
+  .icon-spin { animation: iconSpin 40s linear infinite; transform-origin: center; }
+  .icon-drop { animation: iconDrop 1.6s ease-in-out infinite; }
+
+  @keyframes iconFloat { from { transform: translateY(0); } to { transform: translateY(-4px); } }
+  @keyframes iconSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  @keyframes iconDrop { 0%, 100% { transform: translateY(0); opacity: 1; } 50% { transform: translateY(2px); opacity: 0.6; } }
+
+  .temp-readout {
+    font-family: "SF Mono", "Cascadia Code", "JetBrains Mono", ui-monospace, monospace;
+    font-size: 40px;
+    font-variant-numeric: tabular-nums;
+    color: var(--tint, var(--accent-warm));
+    line-height: 1;
+    margin-bottom: 4px;
+    text-shadow: 0 0 24px var(--tint-glow, rgba(232, 147, 92, 0.25));
+  }
+
+  .description { color: var(--text-muted); font-size: 13px; text-transform: capitalize; margin-bottom: 20px; }
+
+  .meta-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+
+  .meta-label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; }
+  .meta-value { font-family: ui-monospace, monospace; font-size: 13px; color: var(--accent-cool); }
+
+  .status-dot {
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #4ade80;
+    margin-right: 6px;
+    box-shadow: 0 0 8px rgba(74, 222, 128, 0.6);
+    animation: dotPulse 2s ease-in-out infinite;
+  }
+
+  @keyframes dotPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+  .error-state { color: var(--text-muted); font-size: 13px; }
+
+  .skeleton-block {
+    background: linear-gradient(90deg, var(--border) 25%, #2e3f4f 50%, var(--border) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.4s ease-in-out infinite;
+    border-radius: 6px;
+  }
+
+  @keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  .skeleton-title { width: 60%; height: 12px; margin-bottom: 20px; }
+  .skeleton-icon { width: 40px; height: 40px; border-radius: 8px; }
+  .skeleton-temp { width: 80px; height: 36px; margin-bottom: 8px; }
+  .skeleton-desc { width: 50%; height: 11px; margin-bottom: 22px; }
+  .skeleton-meta { width: 100%; height: 14px; }
+
+  .sparkline-wrap { height: 28px; margin: 2px 0 16px; }
+  .sparkline { width: 100%; height: 100%; display: block; overflow: visible; }
+
+  @keyframes valueFlash {
+    0% { opacity: 0.25; }
+    100% { opacity: 1; }
+  }
+  .value-flash { animation: valueFlash 500ms ease-out; }
+
+  footer { margin-top: 40px; color: var(--text-muted); font-size: 12px; text-align: center; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .card--entering { animation: none; opacity: 1; transform: none; }
+    .icon-float, .icon-spin, .icon-drop, .status-dot { animation: none; }
+    .card:hover .icon-wrap { transform: none; }
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <p class="eyebrow">Live monitoring</p>
+      <h1>Weather Station</h1>
+      <p class="subtitle" id="last-updated">Memuat data terkini...</p>
+    </header>
+
+    <div class="grid" id="grid"></div>
+
+    <footer>Data diperbarui otomatis oleh worker tiap 30 menit &middot; sumber: OpenWeatherMap</footer>
+  </div>
+
+<script>
+  const API_BASE = "http://localhost:3000";
+  const CITIES = ["Jakarta", "Surabaya", "Bandung", "Medan", "Semarang", "Yogyakarta", "Malang", "Denpasar"];
+
+  const grid = document.getElementById("grid");
+  const lastUpdated = document.getElementById("last-updated");
+
+  const ICONS = {
+    clear: {
+      tint: "var(--accent-warm)",
+      glow: "rgba(232, 147, 92, 0.3)",
+      cls: "icon-spin",
+      svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2.5M12 19.5V22M4.2 4.2l1.8 1.8M18 18l1.8 1.8M2 12h2.5M19.5 12H22M4.2 19.8L6 18M18 6l1.8-1.8" stroke-linecap="round"/></svg>`
+    },
+    clouds: {
+      tint: "var(--accent-cloud)",
+      glow: "rgba(159, 176, 192, 0.25)",
+      cls: "icon-float",
+      svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6.5 18a4 4 0 0 1-.5-7.97A5 5 0 0 1 15.9 8.5 4.5 4.5 0 0 1 15.5 18h-9Z" stroke-linejoin="round"/></svg>`
+    },
+    rain: {
+      tint: "var(--accent-cool)",
+      glow: "rgba(92, 168, 232, 0.3)",
+      cls: "",
+      svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6.5 13.5a4 4 0 0 1-.4-7.97A5 5 0 0 1 15.7 4 4.5 4.5 0 0 1 15.4 13.5h-8.9Z" stroke-linejoin="round"/><g class="icon-drop"><path d="M8 16.5v2.5M12 16.5v3.5M16 16.5v2.5" stroke-linecap="round"/></g></svg>`
+    },
+    thunderstorm: {
+      tint: "var(--accent-storm)",
+      glow: "rgba(181, 138, 240, 0.3)",
+      cls: "",
+      svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6.5 12.5a4 4 0 0 1-.4-7.97A5 5 0 0 1 15.7 3 4.5 4.5 0 0 1 15.4 12.5h-8.9Z" stroke-linejoin="round"/><path d="M13 13.5 9.5 18h3l-1 3.5 4.5-5.5h-3l1-2.5Z" fill="currentColor" stroke="none"/></svg>`
+    },
+    snow: {
+      tint: "var(--accent-cool)",
+      glow: "rgba(92, 168, 232, 0.3)",
+      cls: "icon-float",
+      svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2v20M4.5 6.5l15 11M19.5 6.5l-15 11" stroke-linecap="round"/></svg>`
+    },
+    mist: {
+      tint: "var(--accent-cloud)",
+      glow: "rgba(159, 176, 192, 0.2)",
+      cls: "icon-float",
+      svg: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 8h18M3 12h18M3 16h12" stroke-linecap="round"/></svg>`
+    }
+  };
+
+  function pickIcon(description) {
+    const d = (description || "").toLowerCase();
+    if (d.includes("thunder") || d.includes("petir")) return ICONS.thunderstorm;
+    if (d.includes("snow") || d.includes("salju")) return ICONS.snow;
+    if (d.includes("rain") || d.includes("drizzle") || d.includes("hujan")) return ICONS.rain;
+    if (d.includes("mist") || d.includes("fog") || d.includes("haze") || d.includes("kabut")) return ICONS.mist;
+    if (d.includes("cloud") || d.includes("awan") || d.includes("berawan")) return ICONS.clouds;
+    return ICONS.clear;
+  }
+
+  function renderSkeleton() {
+    const card = document.createElement("div");
+    card.className = "card card--entering";
+    card.innerHTML = `
+      <div class="card-top">
+        <div class="skeleton-block skeleton-title"></div>
+        <div class="skeleton-block skeleton-icon"></div>
+      </div>
+      <div class="skeleton-block skeleton-temp"></div>
+      <div class="skeleton-block skeleton-desc"></div>
+      <div class="skeleton-block skeleton-meta"></div>
+    `;
+    return card;
+  }
+
+  function buildSparkline(history, tint) {
+    if (!history || history.length < 2) {
+      return `<div style="color:var(--text-muted);font-size:11px;">Belum cukup data tren</div>`;
+    }
+    const temps = history.map((h) => h.temperature);
+    const min = Math.min(...temps);
+    const max = Math.max(...temps);
+    const range = max - min || 1;
+    const w = 100, h = 28, pad = 3;
+
+    const points = temps
+      .map((t, i) => {
+        const x = (i / (temps.length - 1)) * w;
+        const y = h - pad - ((t - min) / range) * (h - pad * 2);
+        return `${x.toFixed(1)},${y.toFixed(1)}`;
+      })
+      .join(" ");
+
+    const lastY = h - pad - ((temps[temps.length - 1] - min) / range) * (h - pad * 2);
+
+    return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" class="sparkline">
+      <polyline points="${points}" fill="none" stroke="${tint}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="${w}" cy="${lastY.toFixed(1)}" r="2.2" fill="${tint}"/>
+    </svg>`;
+  }
+
+  function renderCard(city, data, history, error) {
+    const card = document.createElement("div");
+    card.className = "card card--entering";
+    card.addEventListener("animationend", () => { card.classList.remove("card--entering"); }, { once: true });
+
+    if (error) {
+      card.innerHTML = `
+        <p class="city-name">${city}</p>
+        <p class="error-state" style="margin-top:12px;">Belum ada data</p>
+      `;
+      return card;
+    }
+
+    const icon = pickIcon(data.description);
+    card.style.setProperty("--tint", icon.tint);
+    card.style.setProperty("--tint-glow", icon.glow);
+
+    card.innerHTML = `
+      <div class="card-top">
+        <p class="city-name">${data.city}</p>
+        <div class="icon-wrap"><span class="icon-anim ${icon.cls}">${icon.svg}</span></div>
+      </div>
+      <div class="temp-readout">${data.temperature.toFixed(1)}&deg;</div>
+      <p class="description">${data.description}</p>
+      <div class="sparkline-wrap">${buildSparkline(history, "var(--tint)")}</div>
+      <div class="meta-row">
+        <span class="meta-label">Kelembaban</span>
+        <span class="meta-value">${data.humidity}%</span>
+      </div>
+    `;
+    return card;
+  }
+
+  async function fetchCity(city) {
+    try {
+      const [weatherRes, historyRes] = await Promise.all([
+        fetch(`${API_BASE}/weather?city=${encodeURIComponent(city)}`),
+        fetch(`${API_BASE}/weather/history?city=${encodeURIComponent(city)}&limit=8`),
+      ]);
+
+      if (!weatherRes.ok) throw new Error("not found");
+      const weatherJson = await weatherRes.json();
+
+      let history = [];
+      if (historyRes.ok) {
+        const historyJson = await historyRes.json();
+        history = (historyJson.data || []).slice().reverse();
+      }
+
+      return { city, data: weatherJson.data, history, error: false };
+    } catch (e) {
+      return { city, data: null, history: [], error: true };
+    }
+  }
+
+  let isFirstLoad = true;
+  const cardRefs = {};
+
+  function updateCardInPlace(ref, data, history) {
+    const tempEl = ref.root.querySelector(".temp-readout");
+    const descEl = ref.root.querySelector(".description");
+    const humEl = ref.root.querySelector(".meta-value");
+    const sparkWrap = ref.root.querySelector(".sparkline-wrap");
+
+    const newTemp = data.temperature;
+    const changed = ref.lastTemp !== null && ref.lastTemp !== newTemp;
+
+    if (tempEl) {
+      tempEl.textContent = `${newTemp.toFixed(1)}°`;
+      if (changed) {
+        tempEl.classList.remove("value-flash");
+        void tempEl.offsetWidth;
+        tempEl.classList.add("value-flash");
+      }
+    }
+    if (descEl) descEl.textContent = data.description;
+    if (humEl) humEl.textContent = `${data.humidity}%`;
+    if (sparkWrap) sparkWrap.innerHTML = buildSparkline(history, "var(--tint)");
+
+    ref.lastTemp = newTemp;
+  }
+
+  async function loadDashboard() {
+    if (isFirstLoad) {
+      grid.innerHTML = "";
+      CITIES.forEach(() => grid.appendChild(renderSkeleton()));
+    }
+
+    const results = await Promise.all(CITIES.map(fetchCity));
+
+    if (isFirstLoad) {
+      grid.innerHTML = "";
+    }
+
+    results.forEach(({ city, data, history, error }) => {
+      const existing = cardRefs[city];
+
+      if (!existing || error) {
+        const newCard = renderCard(city, data, history, error);
+        if (existing && existing.root.parentNode) {
+          existing.root.parentNode.replaceChild(newCard, existing.root);
+        } else {
+          grid.appendChild(newCard);
+        }
+        cardRefs[city] = { root: newCard, lastTemp: error ? null : data.temperature };
+      } else {
+        updateCardInPlace(existing, data, history);
+      }
+    });
+
+    isFirstLoad = false;
+
+    const now = new Date();
+    lastUpdated.innerHTML = `<span class="status-dot"></span>Terakhir dicek: ${now.toLocaleTimeString("id-ID")}`;
+  }
+
+  loadDashboard();
+  setInterval(loadDashboard, 60000);
+</script>
+</body>
+</html>
