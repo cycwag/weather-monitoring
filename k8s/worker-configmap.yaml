@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: worker-config
+data:
+  FETCH_INTERVAL_MINUTES: "30"
+  CITIES: "Jakarta,Surabaya,Bandung,Medan,Semarang,Yogyakarta,Malang,Denpasar"
+  

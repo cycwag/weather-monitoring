@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: weather-worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: weather-worker
+  template:
+    metadata:
+      labels:
+        app: weather-worker
+    spec:
+      containers:
+        - name: weather-worker
+          image: bagasrinaldi/weather-worker:latest
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "150m"
+              memory: "128Mi"
+          env:
+            - name: REDIS_HOST
+              value: redis
+            - name: REDIS_PORT
+              value: "6379"
+            - name: DB_HOST
+              value: postgres
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: weather-secrets
+                  key: DB_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: weather-secrets
+                  key: DB_PASSWORD
+            - name: DB_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: weather-secrets
+                  key: DB_NAME
+            - name: OPENWEATHER_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: weather-secrets
+                  key: OPENWEATHER_API_KEY
+            - name: FETCH_INTERVAL_MINUTES
+              valueFrom:
+                configMapKeyRef:
+                  name: worker-config
+                  key: FETCH_INTERVAL_MINUTES
+            - name: CITIES
+              valueFrom:
+                configMapKeyRef:
+                  name: worker-config
+                  key: CITIES
