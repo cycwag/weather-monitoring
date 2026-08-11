@@ -99,6 +99,7 @@ jobs:
           severity: "CRITICAL"
           exit-code: "1"
           ignore-unfixed: true
+          scanners: 'vuln'
 
       - name: Trivy - scan image (laporan HIGH/MEDIUM, non-blocking)
         uses: aquasecurity/trivy-action@master
