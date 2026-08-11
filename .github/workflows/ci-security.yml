@@ -1,0 +1,115 @@
+name: CI - Security Scan, Build, and Push
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ── 1. SECRET SCANNING ── selalu blocking, secret bocor tidak boleh lolos
+  secret-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Gitleaks - scan secret di kode
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ── 2. IaC SCANNING ── non-blocking, laporan saja
+  iac-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Checkov - scan Terraform
+        uses: bridgecrewio/checkov-action@master
+        continue-on-error: true
+        with:
+          directory: terraform
+          framework: terraform
+          soft_fail: true
+
+  # ── 3. DEPENDENCY SCANNING ── non-blocking, laporan saja
+  dependency-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: OWASP Dependency Check
+        uses: dependency-check/Dependency-Check_Action@main
+        continue-on-error: true
+        with:
+          project: "weather-monitoring"
+          path: "."
+          format: "HTML"
+
+      - name: Upload laporan dependency check
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-check-report
+          path: reports/
+
+  # ── 4. CODE QUALITY ── blocking via quality gate
+  code-quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  # ── 5. BUILD + IMAGE SCAN + PUSH ── Trivy blocking untuk CRITICAL saja
+  build-scan-push:
+    needs: [secret-scan, code-quality]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [api, worker, frontend]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login ke Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build image (belum push dulu)
+        uses: docker/build-push-action@v6
+        with:
+          context: ./${{ matrix.service }}
+          push: false
+          load: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/weather-${{ matrix.service }}:latest
+
+      - name: Trivy - scan image (blocking untuk CRITICAL)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ secrets.DOCKERHUB_USERNAME }}/weather-${{ matrix.service }}:latest
+          severity: "CRITICAL"
+          exit-code: "1"
+
+      - name: Trivy - scan image (laporan HIGH/MEDIUM, non-blocking)
+        uses: aquasecurity/trivy-action@master
+        continue-on-error: true
+        with:
+          image-ref: ${{ secrets.DOCKERHUB_USERNAME }}/weather-${{ matrix.service }}:latest
+          severity: "HIGH,MEDIUM"
+          exit-code: "0"
+
+      - name: Push image (cuma kalau semua scan di atas lolos)
+        uses: docker/build-push-action@v6
+        with:
+          context: ./${{ matrix.service }}
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/weather-${{ matrix.service }}:latest

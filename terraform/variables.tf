@@ -13,11 +13,11 @@ variable "cluster_name" {
 variable "node_instance_type" {
   description = "EKS Instance Type"
   type        = string
-  default     = "t3.small"
+  default     = "t3.medium"
 }
 
 variable "node_desired_size" {
   description = "jumlah"
   type        = number
-  default     = 1
+  default     = 2
 }
