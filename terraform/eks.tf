@@ -23,7 +23,18 @@ resource "aws_eks_cluster" "main" {
 
   vpc_config {
     subnet_ids = concat(aws_subnet.public[*].id, aws_subnet.private[*].id)
+    endpoint_public_access   = true
+    endpoint_private_access  = true
+    public_access_cidrs      = [var.allowed_ip]
   }
+
+   encryption_config {
+    provider {
+      key_arn = aws_kms_key.eks.arn
+    }
+    resources = ["secrets"]
+  }
+
 
   depends_on = [aws_iam_role_policy_attachment.cluster_policy]
 }

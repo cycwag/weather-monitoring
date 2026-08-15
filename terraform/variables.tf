@@ -21,3 +21,10 @@ variable "node_desired_size" {
   type        = number
   default     = 2
 }
+
+variable "allowed_ip" {
+  description = "IP publik kamu, untuk akses ke EKS API endpoint"
+  type        = string
+  # GANTI dengan IP kamu dari langkah 'curl https://api.ipify.org', tambahkan /32 di akhir
+  default     = "103.3.221.229/32"
+}
