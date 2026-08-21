@@ -41,3 +41,13 @@ kubectl get pods -n kube-system | Select-String "aws-load-balancer"
 Write-Host "=== SELESAI. Cluster + Load Balancer Controller siap. ===" -ForegroundColor Green
 Write-Host "Selanjutnya jalankan: .\scripts\setup-argocd.ps1" -ForegroundColor Yellow
 Write-Host "Argo CD yang akan deploy semua manifest aplikasi secara OTOMATIS." -ForegroundColor Yellow
+
+Write-Host "=== 8. Install Sealed Secrets Controller ===" -ForegroundColor Cyan
+kubectl apply -f https://github.com/bitnami-labs/sealed-secrets/releases/download/v0.27.1/controller.yaml
+
+Write-Host "=== Menunggu Sealed Secrets Controller siap (20 detik) ===" -ForegroundColor Cyan
+Start-Sleep -Seconds 20
+kubectl get pods -n kube-system | Select-String "sealed-secrets"
+
+Write-Host "=== 9. Aktifkan Network Policy enforcement di CNI ===" -ForegroundColor Cyan
+kubectl set env daemonset aws-node -n kube-system ENABLE_NETWORK_POLICY=true

@@ -26,5 +26,5 @@ variable "allowed_ip" {
   description = "IP publik kamu, untuk akses ke EKS API endpoint"
   type        = string
   # GANTI dengan IP kamu dari langkah 'curl https://api.ipify.org', tambahkan /32 di akhir
-  default     = "180.251.182.210/32"
+  default     = "180.252.84.92/32"
 }
